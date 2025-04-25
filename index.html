@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Crash Казино</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: #121212;
+      color: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    #game {
+      background: #1a1a1a;
+      padding: 30px;
+      border-radius: 16px;
+      box-shadow: 0 0 15px rgba(255, 0, 0, 0.2);
+      text-align: center;
+      width: 90%;
+      max-width: 400px;
+    }
+    #coefficient {
+      font-size: 4rem;
+      color: #ff4b4b;
+      margin: 20px 0;
+    }
+    #balance {
+      font-size: 1.5rem; /* Збільшений розмір шрифту для балансу */
+      font-weight: bold; /* Жирний шрифт для балансу */
+      margin-bottom: 10px;
+    }
+    input[type="number"] {
+      padding: 10px;
+      font-size: 1rem;
+      border-radius: 10px;
+      border: none;
+      width: 120px;
+      text-align: center;
+      margin-bottom: 15px;
+      color: black;
+    }
+    button {
+      padding: 12px 25px;
+      font-size: 1rem;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      margin: 5px;
+      background: #ff4b4b;
+      color: white;
+      transition: 0.2s;
+    }
+    button:hover:not(:disabled) {
+      background: #ff0000;
+    }
+    button:disabled {
+      background: #444;
+      cursor: not-allowed;
+    }
+    #status {
+      margin-top: 15px;
+      font-size: 1rem;
+      color: #ccc;
+    }
+    #history {
+      margin-top: 20px;
+      font-size: 1rem;
+      color: #ddd;
+    }
+    #history div {
+      margin: 5px 0;
+    }
+    #subscribe-btn {
+      background-color: #0088cc;
+      margin-top: 20px;
+    }
+    #subscribe-btn:hover {
+      background-color: #006fa6;
+    }
+    #subscribe-info {
+      font-size: 1rem;
+      color: #ccc;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div id="game">
+    <div id="balance">💰 Баланс: $<span id="balanceValue">10.00</span></div>
+    <input type="number" id="betInput" placeholder="Ставка $" step="0.10" min="0.10" value="1.00">
+    <div id="coefficient">1.00x</div>
+    <button id="startBtn" onclick="startGame()">Почати гру</button>
+    <button id="cashoutBtn" onclick="cashout()" disabled>Забрати</button>
+    <div id="status"></div>
+    <div id="history"></div>
+    
+    <!-- Кнопка підписки -->
+    <button id="subscribe-btn" onclick="subscribe()">Отримати 10$ за підписку на TG</button>
+    <div id="subscribe-info"></div>
+  </div>
+
+  <script>
+    const coeffDisplay = document.getElementById('coefficient');
+    const balanceDisplay = document.getElementById('balanceValue');
+    const status = document.getElementById('status');
+    const betInput = document.getElementById('betInput');
+    const historyDiv = document.getElementById('history');
+    const startBtn = document.getElementById('startBtn');
+    const cashoutBtn = document.getElementById('cashoutBtn');
+    const subscribeBtn = document.getElementById('subscribe-btn');
+    const subscribeInfo = document.getElementById('subscribe-info');
+
+    let balance = 10.00;
+    let bet = 1.00;
+    let coefficient = 1.00;
+    let crashAt = 2.20;
+    let isRunning = false;
+    let hasCashedOut = false;
+    let crashed = false;
+    let interval;
+    let gameHistory = [];
+
+    // Перевіряємо, чи отримав користувач бонус
+    if (getCookie('subscribed') === 'true') {
+      subscribeBtn.disabled = true;
+      subscribeInfo.textContent = 'Ви вже отримали 10$ за підписку на Telegram!';
+    }
+
+    function updateBalance() {
+      balanceDisplay.textContent = balance.toFixed(2);
+    }
+
+    function getValidBet() {
+      let value = parseFloat(betInput.value);
+      if (isNaN(value) || value < 0.10) value = 0.10;
+      if (value > balance) value = balance;
+      value = Math.floor(value * 100) / 100;
+      betInput.value = value.toFixed(2);
+      return value;
+    }
+
+    function getRandomCrashPoint() {
+      const r = Math.random();
+      if (r < 0.7) {
+        return (Math.random() * 1.10 + 1.00).toFixed(2);  // Генеруємо значення від 1.00 до 2.10
+      } else {
+        return (Math.random() * 0.50 + 2.10).toFixed(2);  // Генеруємо значення від 2.10 до 2.60
+      }
+    }
+
+    function startGame() {
+      bet = getValidBet();
+      balance -= bet;
+      updateBalance();
+
+      coefficient = 1.00;
+      crashAt = getRandomCrashPoint();
+      isRunning = true;
+      hasCashedOut = false;
+      crashed = false;
+
+      startBtn.disabled = true;
+      cashoutBtn.disabled = false;
+      status.textContent = "🎮 Гра почалась!";
+      coeffDisplay.textContent = "1.00x";
+
+      interval = setInterval(() => {
+        coefficient += 0.01;
+        coeffDisplay.textContent = coefficient.toFixed(2) + "x";
+
+        if (!crashed && coefficient >= crashAt) {
+          crashed = true;
+          endGame();
+        }
+      }, 100);
+    }
+
+    function cashout() {
+      if (isRunning && !hasCashedOut && !crashed) {
+        hasCashedOut = true;
+        const winAmount = (bet * coefficient).toFixed(2);
+        balance += parseFloat(winAmount);
+        updateBalance();
+        status.textContent = `✅ Ви забрали $${winAmount} на ${coefficient.toFixed(2)}x`;
+        cashoutBtn.disabled = true;
+      }
+    }
+
+    function endGame() {
+      clearInterval(interval);
+      isRunning = false;
+
+      // Додаємо історію результату
+      gameHistory.unshift(coefficient.toFixed(2)); // округлене значення коефіцієнта
+      if (gameHistory.length > 6) {
+        gameHistory.pop();
+      }
+
+      // Оновлення історії
+      historyDiv.innerHTML = "<strong>Історія коефіцієнтів:</strong>";
+      gameHistory.forEach((item, index) => {
+        const historyItem = document.createElement('div');
+        historyItem.textContent = `${index + 1}. ${item}x`;
+        historyDiv.appendChild(historyItem);
+      });
+
+      if (!hasCashedOut) {
+        status.textContent = `💥 Краш на ${coefficient.toFixed(2)}x. Ви програли.`;
+      }
+
+      startBtn.disabled = false;
+    }
+
+    function subscribe() {
+      // Вставте свою посилання на Telegram тут
+      const telegramLink = "https://t.me/+IaOFneLjFgplMmYy"; // Замініть на вашу ссилку
+
+      // Перехід на канал
+      window.open(telegramLink, '_blank');
+
+      // Додаємо 10$ за підписку
+      balance += 10;
+      updateBalance();
+      setCookie('subscribed', 'true', 365); // Зберігаємо куки для того, щоб не показувати кнопку знову
+      subscribeBtn.disabled = true;
+      subscribeInfo.textContent = 'Ви вже отримали 10$ за підписку на Telegram!';
+    }
+
+    // Функції для роботи з куками
+    function setCookie(name, value, days) {
+      let expires = "";
+      if (days) {
+        const date = new Date();
+        date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+        expires = "; expires=" + date.toGMTString();
+      }
+      document.cookie = name + "=" + (value || "") + expires + "; path=/";
+    }
+
+    function getCookie(name) {
+      const nameEQ = name + "=";
+      const ca = document.cookie.split(';');
+      for (let i = 0; i < ca.length; i++) {
+        let c = ca[i];
+        while (c.charAt(0) == ' ') c = c.substring(1, c.length);
+        if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length);
+      }
+      return null;
+    }
+  </script>
+</body>
+</html>
+
